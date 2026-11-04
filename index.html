@@ -440,7 +440,7 @@ function parseTLV(s){const out=[];let i=0;while(i<s.length){const tag=s.substr(i
 function buildTLV(a){return a.map(([t,v])=>t+String(v.length).padStart(2,'0')+v).join('');}
 function crc16(str){let crc=0xFFFF;for(let i=0;i<str.length;i++){crc^=str.charCodeAt(i)<<8;for(let j=0;j<8;j++){crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1);crc&=0xFFFF;}}return crc.toString(16).toUpperCase().padStart(4,'0');}
 function makeQris(st,amount){
-  const s=String(st||'').replace(/\s/g,'');
+  const s=String(st||'').trim();
   if(!/^000201/.test(s)) throw new Error('QRIS statis di Settings belum valid (harus diawali 000201).');
   let tlv=parseTLV(s).filter(([t])=>t!=='63'&&t!=='54').map(([t,v])=>t==='01'?['01','12']:[t,v]);
   const idx=tlv.findIndex(([t])=>t==='53');
