@@ -318,9 +318,12 @@ function renderGrid(){
 function shareUrl(p){
   return API?API+'?p='+encodeURIComponent(p.id):location.href.split('#')[0]+'#p/'+p.id;
 }
+function storeUrl(p){
+  return location.href.split('#')[0]+'#p/'+p.id;
+}
 function openProd(id){
   const p=P.find(x=>x.id===id); if(!p) return;
-  const url=shareUrl(p), txt=p.name+' - '+rp(p.price);
+  const url=shareUrl(p), surl=storeUrl(p), txt=p.name+' - '+rp(p.price);
   $('prodBody').innerHTML=`<img id="pm" class="pm" src="${p.images[0]||ph(p.name)}" alt="">
     <div class="thumbs">${p.images.map(i=>`<img src="${i}" onclick="$('pm').src=this.src">`).join('')}</div>
     <h2 style="margin:6px 0">${esc(p.name)}</h2>
@@ -331,15 +334,15 @@ function openProd(id){
     <div class="share">
       <a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt+'\n'+url)}">WhatsApp</a>
       <a class="btn ghost" target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}">Facebook</a>
-      <button class="ghost" onclick="copyT('${esc(url)}','Link disalin. Tempel di Instagram.')">Instagram</button>
+      <button class="ghost" onclick="copyT('${esc(surl)}','Link disalin. Tempel di Instagram.')">Instagram</button>
       <button class="ghost" onclick="shareNative('${esc(p.id)}')">Bagikan</button>
-      <button class="ghost" onclick="copyT('${esc(url)}','Link disalin')">Salin Link</button>
+      <button class="ghost" onclick="copyT('${esc(surl)}','Link disalin')">Salin Link</button>
     </div>`;
   openM('prodModal');
   if(location.hash!=='#p/'+id) history.replaceState(null,'','#p/'+id);
 }
 function shareNative(id){
-  const p=P.find(x=>x.id===id); const url=shareUrl(p);
+  const p=P.find(x=>x.id===id); const url=storeUrl(p);
   if(navigator.share) navigator.share({title:p.name,text:p.name+' - '+rp(p.price),url}).catch(()=>{});
   else copyT(url,'Link disalin');
 }
