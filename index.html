@@ -54,7 +54,7 @@ iframe#preview{width:100%;height:80vh;border:1px solid #cbd5e1;border-radius:8px
     </section>
 
     <section class="panel"><h3>2. Tema (20 pilihan)</h3>
-      <p class="muted" style="margin:0">Tema bisa diganti dari Settings di Sheet, kolom <b>tema</b>. Pilihan di sini hanya nilai awal.</p>
+      <p class="muted" style="margin:0">Tema diatur dari halaman ini. Untuk mengganti tema, pilih tema lalu download dan upload ulang HTML toko.</p>
       <div id="themes" class="themes"></div>
       <div class="row" style="margin-top:10px">
         <label style="flex:1">Gaya hero<select onchange="G.hero=this.value;sched()">
@@ -247,13 +247,12 @@ function load(){
 
 function init(){
   // gabungan: Sheet menang atas nilai awal generator
-  const tk=TK[S.tema]?S.tema:(TK[CFG.tema]?CFG.tema:'minimal');
-  const T=TK[tk];
-  const accent=yes(S.pakai_warna)&&S.warna_aksen?S.warna_aksen:T.accent;
-  const fk=(S.font&&S.font!=='auto')?S.font:(CFG.font!=='auto'?CFG.font:'auto');
+  const T=TK[CFG.tema]||TK.minimal;
+  const accent=T.accent;
+  const fk=CFG.font;
   const font=fk==='sans'?SANS:fk==='serif'?SERIF:(T.f==='serif'?SERIF:SANS);
-  const hero=(S.hero&&S.hero!=='auto')?S.hero:(CFG.hero!=='auto'?CFG.hero:T.h);
-  const cols=Math.min(4,Math.max(2,+(S.kolom||CFG.kolom)||3));
+  const hero=CFG.hero!=='auto'?CFG.hero:T.h;
+  const cols=Math.min(4,Math.max(2,+CFG.kolom||3));
   const vars={bg:T.bg,card:T.card,text:T.text,muted:T.muted,accent,'accent-text':T.at,radius:T.r,shadow:T.sh,border:T.b,font};
   Object.entries(vars).forEach(([k,v])=>document.documentElement.style.setProperty('--'+k,v));
   document.documentElement.style.setProperty('--cols',cols);
@@ -435,7 +434,16 @@ function openM(id){$(id).classList.add('show');}
 function closeM(id){$(id).classList.remove('show');if(id==='prodModal')history.replaceState(null,'',location.href.split('#')[0]);}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',1800);}
 
-load();
+function loadApi(){
+  fetch(API+'?action=data').then(r=>r.json()).then(d=>{
+    if(!d.ok) throw new Error('gagal');
+    S=d.settings||{};
+    P=(d.products||[]).filter(p=>p.active!==false);
+    K=d.kecamatan||[];
+    init();
+  }).catch(()=>{$('loading').textContent='Gagal memuat data toko. Coba muat ulang halaman.';});
+}
+loadApi();
 @@/script@@
 </body></html>
 </script>
@@ -528,12 +536,11 @@ async function cekKoneksi(){
   $('conn').textContent='Mengecek...';
   const msg=[];
   try{
-    const gid=parseGid(G.sheetRaw);
-    const url=gid?'https://docs.google.com/spreadsheets/d/'+sheet+'/export?format=csv&gid='+gid:'https://docs.google.com/spreadsheets/d/'+sheet+'/gviz/tq?tqx=out:csv&sheet=Settings';
-    const rows=parseCSV(await fetch(url).then(r=>r.text()));
-    const nama=rows.find(r=>String(r[0]).trim()==='nama_toko');
-    msg.push('✅ Sheet terbaca. Nama toko: "'+(nama&&nama[1]?nama[1].trim():'-')+'".');
-  }catch(e){ msg.push('❌ Sheet tidak terbaca. Pastikan tab Settings ada dan sheet dibagikan "Anyone with the link: Viewer".'); }
+    if(!api) throw new Error('api kosong');
+    const d=await fetch(api+'?action=data').then(r=>r.json());
+    if(!d.ok) throw new Error('tidak ok');
+    msg.push('✅ Data terbaca. Nama toko: "'+(d.settings.nama_toko||'-')+'", produk aktif: '+d.products.length+'.');
+  }catch(e){ msg.push('❌ Data belum terbaca dari Apps Script. Pastikan URL /exec sudah benar dan deployment versi terbaru.'); }
   if(!api){ msg.push('⚠️ URL Web App belum diisi. Pemesanan dan tautan share tidak akan berfungsi.'); }
   else{
     try{
