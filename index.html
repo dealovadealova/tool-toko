@@ -468,6 +468,19 @@ const TH=[
 const G={sheetRaw:'',apiRaw:'',tema:'minimal',hero:'auto',kolom:'3',font:'auto'};
 let TM=null;
 
+function parseCSV(t){
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&t[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+    else f+=c;
+  }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
 function parseGid(v){ const m=String(v).match(/[?#&]gid=(\d+)/); return m?m[1]:''; }
 function parseSheetId(v){
   const m=String(v).match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
