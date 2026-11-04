@@ -77,7 +77,17 @@ iframe#preview{width:100%;height:80vh;border:1px solid #cbd5e1;border-radius:8px
       </div>
     </section>
 
-    <section class="panel"><h3>4. Unduh</h3>
+    <section class="panel"><h3>4. Install di HP (aplikasi)</h3>
+      <label>Nama aplikasi di layar HP</label>
+      <input value="Toko" oninput="PWA.name=this.value||'Toko'">
+      <label>Icon aplikasi (gambar kotak, disarankan 512x512 px)</label>
+      <input type="file" accept="image/*" onchange="loadIcon(this.files[0])">
+      <div id="iconInfo" class="muted">Belum ada icon.</div>
+      <div class="row" style="margin-top:8px"><button class="ghost" onclick="downloadPWA()">Download file aplikasi</button></div>
+      <p class="muted">Setelah diunduh, upload semua file (HTML, manifest.json, sw.js, icon-192.png, icon-512.png) ke satu folder di Cloudflare Pages. Di HP (Chrome Android): buka tokonya, lalu menu ⋮ &gt; Install app atau Tambahkan ke layar utama. Di iPhone (Safari): Bagikan &gt; Tambah ke Layar Utama.</p>
+    </section>
+
+    <section class="panel"><h3>5. Unduh</h3>
       <button onclick="exportHTML()">Download HTML Toko</button>
       <p class="muted">Upload file ini ke Cloudflare Pages (Direct Upload). Setelah itu cukup edit Google Sheet. Isi <b>url_toko</b> di Settings dengan alamat hasil upload agar tautan share berfungsi.</p>
     </section>
@@ -91,7 +101,7 @@ iframe#preview{width:100%;height:80vh;border:1px solid #cbd5e1;border-radius:8px
 
 <!-- TEMPLATE TOKO. Semua penutup script di dalam tpl ditulis @@/script@@ agar tidak menutup blok ini -->
 <script id="tpl" type="text/plain"><!DOCTYPE html>
-<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Toko</title>
+<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Toko</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><meta name="theme-color" content="#111827"><meta name="apple-mobile-web-app-capable" content="yes">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">@@/script@@
 <style>
 *{box-sizing:border-box}
@@ -105,7 +115,7 @@ header.top b{flex:1;font-size:17px}
 .hero-minimal .hero{text-align:left;padding:22px 16px}
 .hero h1{margin:8px 0 6px;font-size:clamp(24px,5vw,38px)}
 .hero p{margin:0;opacity:.85}
-.hero #logo{height:64px;max-width:220px;object-fit:contain}
+.hero #logo{height:128px;max-width:440px;object-fit:contain}
 .chips{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px}
 .chip{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap;font:inherit;font-size:14px}
 .chip.on{background:var(--accent);color:var(--accent-text)}
@@ -271,7 +281,11 @@ function init(){
   $('brandTop').textContent=name;
   $('heroTitle').textContent=name;
   $('heroTag').textContent=S.tagline||'';
-  const lg=driveImg(S.logo_url); if(lg){$('logo').src=lg;$('logo').classList.remove('hidden');}
+  const lg=driveImg(S.logo_url);
+  if(lg){
+    $('logo').src=lg; $('logo').classList.remove('hidden');
+    const fv=document.createElement('link'); fv.rel='icon'; fv.href=lg; document.head.appendChild(fv);
+  }
 
   const soc=[['ig','Instagram'],['youtube','YouTube'],['fb','Facebook'],['tt','TikTok'],['shopee','Shopee'],['tokped','Tokopedia']]
     .filter(([k])=>okImg(S[k])).map(([k,l])=>`<a href="${esc(S[k])}" target="_blank" rel="noopener" title="${l}" style="display:inline-block;margin:0 6px;vertical-align:middle">${ICON[k]}</a>`).join('');
@@ -458,6 +472,7 @@ function loadApi(){
     init();
   }).catch(()=>{$('loading').textContent='Gagal memuat data toko. Coba muat ulang halaman.';});
 }
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 loadApi();
 @@/script@@
 </body></html>
@@ -567,6 +582,39 @@ async function cekKoneksi(){
   refresh();
 }
 
+const PWA={name:'Toko',i192:'',i512:''};
+function loadIcon(f){
+  if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    const im=new Image();
+    im.onload=()=>{
+      PWA.i192=squarePng(im,192); PWA.i512=squarePng(im,512);
+      $('iconInfo').textContent='✅ Icon siap ('+im.width+' x '+im.height+' px).';
+    };
+    im.src=r.result;
+  };
+  r.readAsDataURL(f);
+}
+function squarePng(im,size){
+  const c=document.createElement('canvas'); c.width=size; c.height=size;
+  const ctx=c.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
+  const s=Math.min(size/im.width,size/im.height), w=im.width*s, h=im.height*s;
+  ctx.drawImage(im,(size-w)/2,(size-h)/2,w,h);
+  return c.toDataURL('image/png');
+}
+function dlText(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();}
+function dlUrl(name,url){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
+function downloadPWA(){
+  if(!PWA.i512){alert('Upload icon aplikasi dulu.');return;}
+  const manifest={name:PWA.name,short_name:PWA.name.slice(0,12),start_url:'./',scope:'./',display:'standalone',
+    background_color:'#ffffff',theme_color:'#111827',
+    icons:[{src:'icon-192.png',sizes:'192x192',type:'image/png'},{src:'icon-512.png',sizes:'512x512',type:'image/png'}]};
+  dlText('manifest.json',JSON.stringify(manifest,null,2),'application/json');
+  dlText('sw.js',"self.addEventListener('install',()=>self.skipWaiting());\nself.addEventListener('activate',()=>self.clients.claim());\n",'text/javascript');
+  dlUrl('icon-192.png',PWA.i192);
+  dlUrl('icon-512.png',PWA.i512);
+}
 readFitur();
 renderThemes();
 refresh();
