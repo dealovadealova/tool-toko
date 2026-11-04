@@ -220,6 +220,10 @@ function parseCSV(t){
   if(f!==''||row.length){ row.push(f); rows.push(row); }
   return rows;
 }
+function gvGid(gid){
+  return fetch('https://docs.google.com/spreadsheets/d/'+SHEET+'/export?format=csv&gid='+gid)
+    .then(r=>{ if(!r.ok) throw new Error('gagal'); return r.text(); }).then(parseCSV);
+}
 function gv(tab){
   return fetch('https://docs.google.com/spreadsheets/d/'+SHEET+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(tab))
     .then(r=>{ if(!r.ok) throw new Error('gagal'); return r.text(); }).then(parseCSV);
@@ -227,7 +231,7 @@ function gv(tab){
 const num=v=>Number(String(v==null?'':v).replace(/[^\d-]/g,''))||0;
 
 function load(){
-  Promise.all([gv('Settings'),gv('Produk'),gv('Kecamatan')]).then(([sr,pr,kr])=>{
+  Promise.all([CFG.gid?gvGid(CFG.gid):gv('Settings'),gv('Produk'),gv('Kecamatan')]).then(([sr,pr,kr])=>{
     S={};
     const c=(r,i)=>String((r&&r[i])!=null?r[i]:'').trim();
     S={};
@@ -464,6 +468,7 @@ const TH=[
 const G={sheetRaw:'',apiRaw:'',tema:'minimal',hero:'auto',kolom:'3',font:'auto'};
 let TM=null;
 
+function parseGid(v){ const m=String(v).match(/[?#&]gid=(\d+)/); return m?m[1]:''; }
 function parseSheetId(v){
   const m=String(v).match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   if(m) return m[1];
@@ -484,7 +489,7 @@ function buildHTML(){
   const sheet=parseSheetId(G.sheetRaw);
   if(!sheet) return '<p style="font-family:sans-serif;padding:20px">Isi link Google Sheet untuk melihat preview.</p>';
   const api=String(G.apiRaw||'').trim();
-  const cfg={themes:TH,tema:G.tema,hero:G.hero,kolom:G.kolom,font:G.font,
+  const cfg={themes:TH,tema:G.tema,hero:G.hero,kolom:G.kolom,font:G.font,gid:parseGid(G.sheetRaw),
     fitur:G.fitur||{kirim:true,qris:true,tf:true,cash:true}};
   return $('tpl').textContent
     .replace('__SHEET__',()=>JSON.stringify(sheet))
@@ -510,7 +515,9 @@ async function cekKoneksi(){
   $('conn').textContent='Mengecek...';
   const msg=[];
   try{
-    const rows=parseCSV(await fetch('https://docs.google.com/spreadsheets/d/'+sheet+'/gviz/tq?tqx=out:csv&sheet=Settings').then(r=>r.text()));
+    const gid=parseGid(G.sheetRaw);
+    const url=gid?'https://docs.google.com/spreadsheets/d/'+sheet+'/export?format=csv&gid='+gid:'https://docs.google.com/spreadsheets/d/'+sheet+'/gviz/tq?tqx=out:csv&sheet=Settings';
+    const rows=parseCSV(await fetch(url).then(r=>r.text()));
     const nama=rows.find(r=>String(r[0]).trim()==='nama_toko');
     msg.push('✅ Sheet terbaca. Nama toko: "'+(nama&&nama[1]?nama[1].trim():'-')+'".');
   }catch(e){ msg.push('❌ Sheet tidak terbaca. Pastikan tab Settings ada dan sheet dibagikan "Anyone with the link: Viewer".'); }
